@@ -11,7 +11,7 @@ Python 3.10+, an OpenAI API key with access to a computer-use model, Chromium (i
 
 ## Setup
 ```bash
-git clone <repo-url> && cd cancel-maze
+git clone https://github.com/Rupanshparth/cancel-maze.git && cd cancel-maze
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt && playwright install chromium
 cp .env.example .env   # then add your OPENAI_API_KEY
