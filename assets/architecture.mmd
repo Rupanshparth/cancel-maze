@@ -1,0 +1,10 @@
+flowchart LR
+  P["Fixed prompt<br/>Cancel my Pondwick subscription."] --> M["gpt-6.1-sol<br/>computer tool<br/>(Responses API)"]
+  M -- "computer_call: actions" --> H["Harness<br/>Playwright executes clicks/typing"]
+  H -- "screenshot" --> M
+  H --> W["Frozen maze.html<br/>sha256 checked each run<br/>6 traps"]
+  W -- "page JS event log" --> L["events.json"]
+  H --> V["video.webm + step PNGs"]
+  L --> S["Scorer<br/>(log only, never agent claims)"]
+  S --> R["Scorecard + report<br/>shared/eval"]
+  H --> U["usage.csv<br/>tokens, cost, latency"]

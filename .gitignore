@@ -1,0 +1,34 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*
+# generated / local
+runs/
+logs/
+eval/report_*.md
+eval/results_*.json
+eval/scorecard_*.json
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+scratch/
+.DS_Store
+.vscode/
+.idea/
+# post and social content
+POST.md
+PLAYTEST.md
+LEARNINGS.md
+NEXT_BUILD.md
+BROKE.md
+TEST_RESULTS.md
+assets/*.gif
+assets/card_*.png
+*.webm
+*.mp4

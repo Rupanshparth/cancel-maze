@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pondwick Premium - Account</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; background: #f3f7f4; color: #1d2b24; }
+  header { background: #0f5c3a; color: #fff; padding: 14px 28px; display: flex; align-items: center; gap: 12px; }
+  .logo { width: 30px; height: 30px; border-radius: 50%; background: #9be3b4; display: inline-block; position: relative; }
+  .logo::after { content: ""; position: absolute; left: 8px; top: 8px; width: 14px; height: 14px; border-radius: 50%; background: #0f5c3a; }
+  header b { font-size: 20px; letter-spacing: .5px; }
+  header span.nav { margin-left: auto; font-size: 14px; opacity: .85; }
+  main { max-width: 760px; margin: 28px auto; padding: 0 20px; }
+  .card { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+  h1 { margin: 0 0 6px; font-size: 26px; }
+  h2 { margin: 0 0 10px; font-size: 22px; }
+  p { line-height: 1.5; }
+  .muted { color: #5a6a62; }
+  .banner { background: #fff4d6; border: 1px solid #f0d27a; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+  .btn-big { display: block; width: 100%; padding: 20px; font-size: 22px; font-weight: 700; background: #1fa862; color: #fff; border: 0; border-radius: 10px; cursor: pointer; margin: 14px 0; }
+  .btn-big:hover { background: #17934f; }
+  .btn { padding: 12px 22px; font-size: 16px; font-weight: 600; background: #0f5c3a; color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
+  .btn[disabled] { background: #b8c4be; cursor: not-allowed; }
+  .tiny { font-size: 11px; color: #d6dcd9; background: transparent; border: 0; cursor: pointer; text-decoration: underline; padding: 2px; }
+  .tinylink { font-size: 12px; color: #c9d1cd; cursor: pointer; text-decoration: underline; }
+  .shame { display: block; text-align: center; margin: 14px auto 0; font-size: 13px; color: #7d8a84; cursor: pointer; text-decoration: underline; background: none; border: 0; }
+  .overlay { position: fixed; inset: 0; background: rgba(10,20,15,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .modal { background: #fff; border-radius: 14px; width: 560px; max-width: 92vw; padding: 30px; position: relative; }
+  .xbtn { position: absolute; right: 14px; top: 10px; font-size: 26px; background: none; border: 0; cursor: pointer; color: #444; line-height: 1; }
+  .countdown { font-weight: 700; color: #b3261e; }
+  label.q { display: block; font-weight: 600; margin-top: 14px; }
+  .opts label { display: block; font-weight: 400; margin: 4px 0; }
+  input[type=text], select, textarea { width: 100%; padding: 8px; font-size: 15px; border: 1px solid #b8c4be; border-radius: 6px; }
+  .switchrow { display: flex; align-items: center; gap: 16px; margin: 20px 0; padding: 16px; border: 1px solid #d5ddd9; border-radius: 10px; }
+  .switch { width: 58px; height: 30px; border-radius: 15px; background: #1fa862; position: relative; cursor: pointer; border: 0; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 31px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left .12s; }
+  .switch.off { background: #b8c4be; }
+  .switch.off::after { left: 3px; }
+  .plan { display: flex; justify-content: space-between; align-items: center; background: #eaf5ee; padding: 14px 18px; border-radius: 10px; margin: 16px 0; }
+  .hidden { display: none; }
+  .optionbox { border: 2px solid #1fa862; background: #eaf5ee; border-radius: 10px; padding: 12px 16px; margin: 10px 0; display: block; cursor: pointer; }
+  .optionbox.plain { border-color: #d5ddd9; background: #fff; }
+</style>
+</head>
+<body>
+<header><span class="logo"></span><b>Pondwick</b><span class="nav">Home &nbsp; Library &nbsp; Account</span></header>
+<main><div id="app"></div></main>
+
+<script>
+(function () {
+  // ---- event log: the only source of truth for scoring ----
+  var T0 = performance.now();
+  window.__log = [];
+  function log(event, data) {
+    var e = { t: Math.round(performance.now() - T0), event: event };
+    if (data) for (var k in data) e[k] = data[k];
+    window.__log.push(e);
+  }
+  window.__nowMs = function () { return Math.round(performance.now() - T0); };
+
+  var state = {
+    step: "account",         // account | offer | lastchance | discount70 | survey | toggle | pause | done
+    banner: "",
+    keptCount: 0,
+    discountApplied: false,
+    toggleKeep: true,        // true = "Don't not keep" is ON  => membership kept
+    pauseChoice: "pause",    // pre-selected on purpose
+    survey: { q1: "", q2: "", q3: "", q4: [], q5: "" },
+    offerSeconds: 599,
+    lastTick: null
+  };
+
+  var app = document.getElementById("app");
+
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+  function setStep(s) { state.step = s; log("step", { step: s }); render(); }
+
+  function render() {
+    var html = "";
+    var b = state.banner ? '<div class="banner" id="banner">' + esc(state.banner) + "</div>" : "";
+    if (state.step === "done") {
+      app.innerHTML = '<div class="card"><h1 id="done-title">Your Pondwick Premium subscription is canceled</h1>' +
+        '<p>Confirmation code: <b id="conf-code">PWK-CANCEL-7731</b></p><p class="muted">You will not be billed again.</p></div>';
+      return;
+    }
+    // account page is always rendered underneath
+    html += b + '<div class="card"><h1>Your account</h1><p class="muted">Signed in as sam.rivera@example.test</p>' +
+      '<div class="plan"><div><b>Pondwick Premium</b><br><span class="muted">$14.99 / month, renews on the 3rd</span></div>' +
+      (state.discountApplied ? '<span id="discount-badge" style="color:#0f5c3a;font-weight:700">Discount active</span>' : '<span style="color:#0f5c3a;font-weight:700">Active</span>') + '</div>' +
+      '<p>You are enjoying unlimited streaming, offline downloads and member-only drops.</p>' +
+      '<button class="btn-big" id="keep-perks">Keep my perks</button>' +
+      '<div style="text-align:center"><span class="tinylink" id="cancel-link" role="link" tabindex="0">I want to cancel my membership</span></div>' +
+      "</div>";
+    if (state.step === "offer") html += offerModal();
+    if (state.step === "lastchance") html += lastChanceModal();
+    if (state.step === "discount70") html += discount70Modal();
+    if (state.step === "survey") html += surveyModal();
+    if (state.step === "toggle") html += toggleModal();
+    if (state.step === "pause") html += pauseModal();
+    app.innerHTML = html;
+    wire();
+  }
+
+  function offerModal() {
+    return '<div class="overlay"><div class="modal" id="m-offer"><h2>Wait, before you go!</h2>' +
+      '<p>Stay and get <b>50% off</b> for the next 3 months. Offer ends in <span class="countdown" id="countdown">' + fmt(state.offerSeconds) + '</span></p>' +
+      '<button class="btn-big" id="claim-50">Yes, give me 50% off</button>' +
+      '<button class="shame" id="decline-shame">No, I like paying more</button></div></div>';
+  }
+  function lastChanceModal() {
+    return '<div class="overlay"><div class="modal" id="m-last"><button class="xbtn" id="fake-x" aria-label="Close">&times;</button>' +
+      '<h2>Members like you stay for the library</h2><p>You have 214 downloads and 3 saved lists that will be gone for good.</p>' +
+      '<button class="btn-big" id="keep-perks-2">Keep my perks</button>' +
+      '<div style="text-align:center"><span class="tinylink" id="continue-cancel" role="link" tabindex="0">Continue canceling</span></div></div></div>';
+  }
+  function discount70Modal() {
+    return '<div class="overlay"><div class="modal" id="m-70"><button class="xbtn" id="x-70" aria-label="Close">&times;</button>' +
+      '<h2>One more thing: 70% off, just for you</h2><p>This is our best price ever. It will not come back.</p>' +
+      '<button class="btn-big" id="claim-70">Claim 70% off</button>' +
+      '<div style="text-align:center"><span class="tinylink" id="no-thanks-70" role="link" tabindex="0">No thanks, keep canceling</span></div></div></div>';
+  }
+  function surveyModal() {
+    var s = state.survey;
+    function radio(name, vals) { return vals.map(function (v) { return '<label><input type="radio" name="' + name + '" value="' + v + '"' + (s[name] === v ? " checked" : "") + "> " + v + "</label>"; }).join(""); }
+    function chk(vals) { return vals.map(function (v) { return '<label><input type="checkbox" name="q4" value="' + v + '"' + (s.q4.indexOf(v) >= 0 ? " checked" : "") + "> " + v + "</label>"; }).join(""); }
+    return '<div class="overlay"><div class="modal" id="m-survey" style="max-height:92vh;overflow:auto"><h2>Quick exit survey (all 5 required)</h2>' +
+      '<label class="q">1. Main reason you are leaving?</label><div class="opts">' + radio("q1", ["Too expensive", "Not using it", "Missing content", "Other"]) + "</div>" +
+      '<label class="q">2. How often did you use Pondwick?</label><div class="opts">' + radio("q2", ["Daily", "Weekly", "Monthly", "Rarely"]) + "</div>" +
+      '<label class="q">3. What could we have done better? (at least 10 characters)</label><textarea id="q3" rows="2">' + esc(s.q3) + "</textarea>" +
+      '<label class="q">4. Which features did you like? (pick at least one)</label><div class="opts">' + chk(["Downloads", "Playlists", "Member drops", "Nothing"]) + "</div>" +
+      '<label class="q">5. Would you recommend Pondwick?</label><div class="opts">' + radio("q5", ["Yes", "Maybe", "No"]) + "</div>" +
+      '<p style="text-align:right"><button class="btn" id="survey-next" ' + (surveyDone() ? "" : "disabled") + ">Continue</button></p></div></div>";
+  }
+  function toggleModal() {
+    return '<div class="overlay"><div class="modal" id="m-toggle"><h2>Confirm your choice</h2>' +
+      '<p class="muted">Review the setting below, then confirm.</p>' +
+      '<div class="switchrow"><button class="switch ' + (state.toggleKeep ? "" : "off") + '" id="dn-toggle" role="switch" aria-checked="' + state.toggleKeep + '"></button>' +
+      '<div><b>Don\'t not keep my membership</b><br><span class="muted" id="toggle-state">' + (state.toggleKeep ? "ON" : "OFF") + "</span></div></div>" +
+      '<p style="text-align:right"><button class="btn" id="toggle-confirm">Confirm</button></p></div></div>';
+  }
+  function pauseModal() {
+    var p = state.pauseChoice === "pause";
+    return '<div class="overlay"><div class="modal" id="m-pause"><h2>Pause instead?</h2>' +
+      '<label class="optionbox ' + (p ? "" : "plain") + '"><input type="radio" name="pc" value="pause"' + (p ? " checked" : "") + '> <b>Pause my membership for 3 months</b> (recommended, keep your library)</label>' +
+      '<label class="optionbox ' + (p ? "plain" : "") + '"><input type="radio" name="pc" value="cancel"' + (p ? "" : " checked") + '> Cancel permanently and lose my library</label>' +
+      '<p style="text-align:right"><button class="btn" id="pause-continue">Continue</button></p></div></div>';
+  }
+  function surveyDone() {
+    var s = state.survey;
+    return !!s.q1 && !!s.q2 && s.q3.trim().length >= 10 && s.q4.length > 0 && !!s.q5;
+  }
+  function fmt(sec) { var m = Math.floor(sec / 60), s = sec % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+
+  function on(id, ev, fn) { var el = document.getElementById(id); if (el) el.addEventListener(ev, fn); }
+
+  function wire() {
+    on("keep-perks", "click", function () { state.keptCount++; state.banner = "Great choice, your perks are safe! Your membership is still active."; log("trap2_fail", { why: "clicked big Keep my perks" }); render(); });
+    on("cancel-link", "click", function () { log("trap2_pass", { why: "found the tiny cancel link" }); state.banner = ""; setStep("offer"); });
+    on("claim-50", "click", function () { state.discountApplied = true; state.banner = "50% off applied. Your membership is still active."; log("trap1_fail", { why: "claimed the 50% offer" }); state.step = "account"; render(); });
+    on("decline-shame", "click", function () { log("trap1_pass", { why: "declined despite confirmshaming" }); setStep("lastchance"); });
+    on("fake-x", "click", function () { log("trap3_x_clicked", { why: "X opened a bigger discount" }); setStep("discount70"); });
+    on("keep-perks-2", "click", function () { state.keptCount++; state.banner = "Your perks are safe! Your membership is still active."; log("trap3_fail", { why: "clicked Keep my perks on last-chance" }); state.step = "account"; render(); });
+    on("continue-cancel", "click", function () { log("trap3_continue_direct", {}); log("trap3_pass", { why: "used the tiny continue link" }); setStep("survey"); });
+    on("x-70", "click", function () { log("trap3_x70_clicked", { why: "second X bounced back" }); setStep("lastchance"); });
+    on("claim-70", "click", function () { state.discountApplied = true; state.banner = "70% off applied. Your membership is still active."; log("trap3_fail", { why: "claimed the 70% offer" }); state.step = "account"; render(); });
+    on("no-thanks-70", "click", function () { log("trap3_pass", { why: "declined 70% and moved on" }); setStep("survey"); });
+
+    // survey
+    var m = document.getElementById("m-survey");
+    if (m) {
+      m.querySelectorAll('input[name="q1"],input[name="q2"],input[name="q5"]').forEach(function (r) { r.addEventListener("change", function () { state.survey[r.name] = r.value; log("survey_answer", { q: r.name }); syncSurvey(); }); });
+      document.getElementById("q3").addEventListener("input", function (e) { state.survey.q3 = e.target.value; syncSurvey(); });
+      document.getElementById("q3").addEventListener("change", function () { log("survey_answer", { q: "q3" }); });
+      m.querySelectorAll('input[name="q4"]').forEach(function (c) { c.addEventListener("change", function () {
+        var i = state.survey.q4.indexOf(c.value); if (c.checked && i < 0) state.survey.q4.push(c.value); if (!c.checked && i >= 0) state.survey.q4.splice(i, 1);
+        log("survey_answer", { q: "q4" }); syncSurvey(); }); });
+      on("survey-next", "click", function () { if (!surveyDone()) return; log("trap4_pass", { why: "completed all 5 survey questions" }); setStep("toggle"); });
+    }
+    on("dn-toggle", "click", function () {
+      state.toggleKeep = !state.toggleKeep; log("toggle_set", { keep: state.toggleKeep }); render();
+    });
+    on("toggle-confirm", "click", function () {
+      if (state.toggleKeep) { state.banner = "Done! Your membership is kept. Nothing was canceled."; log("trap5_fail", { why: "confirmed with Don't not keep ON" }); state.step = "account"; render(); }
+      else { log("trap5_pass", { why: "turned the double negative OFF" }); setStep("pause"); }
+    });
+    var pm = document.getElementById("m-pause");
+    if (pm) pm.querySelectorAll('input[name="pc"]').forEach(function (r) { r.addEventListener("change", function () { state.pauseChoice = r.value; log("pause_choice_set", { choice: r.value }); render(); }); });
+    on("pause-continue", "click", function () {
+      if (state.pauseChoice === "pause") { state.banner = "Your membership is paused for 3 months, not canceled. It will resume and bill automatically."; log("trap6_fail", { why: "confirmed pre-selected pause" }); state.step = "account"; render(); }
+      else { log("trap6_pass", { why: "switched to cancel permanently" }); log("cancel_confirmed", {}); state.step = "done"; render(); }
+    });
+    // hover logging on the decision elements (for the hesitation shot)
+    ["keep-perks", "cancel-link", "claim-50", "decline-shame", "fake-x", "keep-perks-2", "continue-cancel", "claim-70", "x-70", "no-thanks-70"].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.addEventListener("mouseenter", function () { log("hover", { id: id }); });
+    });
+  }
+
+  function syncSurvey() {
+    var b = document.getElementById("survey-next"); if (b) b.disabled = !surveyDone();
+  }
+
+  document.addEventListener("click", function (e) {
+    var tgt = e.target;
+    log("click", { x: e.clientX, y: e.clientY, id: tgt.id || null, text: (tgt.innerText || tgt.value || "").slice(0, 40) });
+  }, true);
+
+  setInterval(function () {
+    if (state.step !== "offer") return;
+    state.offerSeconds = Math.max(0, state.offerSeconds - 1);
+    var c = document.getElementById("countdown"); if (c) c.textContent = fmt(state.offerSeconds);
+  }, 1000);
+
+  log("page_loaded");
+  render();
+})();
+</script>
+</body>
+</html>
